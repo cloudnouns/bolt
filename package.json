@@ -12,7 +12,7 @@
   },
   "scripts": {
     "watch": "tsc --watch",
-    "build": "rimraf ./dist && tsc && chmod +x dist/generator.js"
+    "build": "rimraf ./dist && tsc && chmod +x dist/generator.js && cp package.json dist/package.json"
   },
   "devDependencies": {
     "@types/node": "^18.11.9",
