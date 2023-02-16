@@ -1,13 +1,46 @@
-import { useState } from 'react';
+import { Trait } from './package/curator/trait';
+import Flamingo from './data/mock-trait';
 
 function App() {
-	const [count, setCount] = useState(0);
+	const trait = new Trait({
+		name: 'flamingo',
+		layer: 'heads',
+		colorMatrix: Flamingo,
+	});
+
+	trait.setPixelColorAt({ x: 31, y: 0, color: '#dcff' });
 
 	return (
-		<div className="App">
-			<p>{count}</p>
-			<button onClick={() => setCount(count + 1)}>+</button>
-			<button onClick={() => setCount(count - 1)}>-</button>
+		<div className="min-h-screen flex items-center justify-center">
+			<div className="flex flex-col items-start max-w-md gap-3">
+				<div>
+					<p>Name: {trait.name}</p>
+					<p>Layer: {trait.layer}</p>
+					<p>Filename: {trait.filename}</p>
+				</div>
+
+				<div className="border flex-grow-0">
+					{trait.colorMatrix.map((row, i) => {
+						return (
+							<div className="flex" key={i}>
+								{row.map((color, i) => {
+									return (
+										<div
+											className="h-3 aspect-square"
+											style={{ backgroundColor: color }}
+											key={i}
+										></div>
+									);
+								})}
+							</div>
+						);
+					})}
+				</div>
+
+				<div className="flex flex-wrap">
+					<p>Palette: {trait.palette.join(', ')}</p>
+				</div>
+			</div>
 		</div>
 	);
 }
