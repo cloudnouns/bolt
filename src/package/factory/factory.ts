@@ -28,8 +28,8 @@ type RLESeed<Image> = {
 	[T in keyof Image]: number | string;
 };
 
-type FactoryOptions = { viewbox?: number[] };
-type ItemOptions = { size?: number; removeBg?: boolean };
+type FactoryConfig = { viewbox?: number[] };
+type ItemConfig = { size?: number; removeBg?: boolean };
 
 export class Factory<Parts, BgColors> {
 	readonly bgColors: string[] = [];
@@ -37,7 +37,7 @@ export class Factory<Parts, BgColors> {
 	readonly images;
 	readonly viewbox: number[] = [0, 0, 320, 320];
 
-	constructor(imageData: ImageData<Parts>, options?: FactoryOptions) {
+	constructor(imageData: ImageData<Parts>, options?: FactoryConfig) {
 		this.palette = imageData.palette;
 		this.images = imageData.images;
 
@@ -55,7 +55,7 @@ export class Factory<Parts, BgColors> {
 	 */
 	createItem = (
 		namedSeed: Partial<Image<Parts, BgColors>> = {},
-		options?: ItemOptions
+		options?: ItemConfig
 	) => {
 		const seed = this.utils.namedSeedToSeed(namedSeed);
 		return this.buildItem(seed, options);
@@ -69,14 +69,14 @@ export class Factory<Parts, BgColors> {
 	 */
 	createItemFromSeed = (
 		seed: Seed<Image<Parts, BgColors>> | RLESeed<Image<Parts, BgColors>>,
-		options?: ItemOptions
+		options?: ItemConfig
 	) => {
 		return this.buildItem(seed, options);
 	};
 
 	private buildItem = (
 		inputSeed: Seed<Image<Parts, BgColors>> | RLESeed<Image<Parts, BgColors>>,
-		options?: ItemOptions
+		options?: ItemConfig
 	) => {
 		const { seed, hasRLEParts } = this.utils.validateSeed(inputSeed);
 		const { parts, background } = this.utils.getItemParts(seed, hasRLEParts);
