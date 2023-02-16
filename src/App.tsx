@@ -19,22 +19,26 @@ function App() {
 					<p>Filename: {trait.filename}</p>
 				</div>
 
-				<div className="border flex-grow-0">
-					{trait.colorMatrix.map((row, i) => {
-						return (
-							<div className="flex" key={i}>
-								{row.map((color, i) => {
-									return (
-										<div
-											className="h-3 aspect-square"
-											style={{ backgroundColor: color }}
-											key={i}
-										></div>
-									);
-								})}
-							</div>
-						);
-					})}
+				<div className="flex gap-2">
+					<div className="border flex-grow-0">
+						{trait.colorMatrix.map((row, i) => {
+							return (
+								<div className="flex" key={i}>
+									{row.map((color, i) => {
+										return (
+											<div
+												className="h-3 aspect-square"
+												style={{ backgroundColor: color }}
+												key={i}
+											></div>
+										);
+									})}
+								</div>
+							);
+						})}
+					</div>
+
+					<img src={trait.preview} alt="" />
 				</div>
 
 				<div className="flex flex-wrap">

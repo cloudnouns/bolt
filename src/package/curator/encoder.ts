@@ -14,6 +14,12 @@ interface RGBAColor {
 	a: number;
 }
 
+type EncoderConfig = {
+	width: number;
+	height: number;
+	colorFn: ({ x, y }: ColorCoordinates) => RGBAColor;
+};
+
 /**
  * A class used to convert an image into the following RLE format:
  * Palette Index, Bounds [Top (Y), Right (X), Bottom (Y), Left (X)] (4 Bytes), [Pixel Length (1 Byte), Color Index (1 Byte)][].
@@ -27,14 +33,10 @@ export class RLEImage {
 	public tuples: number[][] = [];
 	private _getRgbaAt: ({ x, y }: ColorCoordinates) => RGBAColor;
 
-	constructor(
-		width: number,
-		height: number,
-		getRgbaAt: ({ x, y }: ColorCoordinates) => RGBAColor
-	) {
+	constructor({ width, height, colorFn }: EncoderConfig) {
 		this._width = width;
 		this._height = height;
-		this._getRgbaAt = getRgbaAt;
+		this._getRgbaAt = colorFn;
 	}
 
 	get height(): number {

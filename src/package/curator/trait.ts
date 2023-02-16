@@ -4,7 +4,10 @@ import type {
 	HexColor,
 	Prettify,
 } from './types';
+import { colord } from 'colord';
 import { createMatrix } from './utils';
+import { RLEImage } from './encoder';
+import { Factory } from '../factory/factory';
 
 type TraitConfig = {
 	name: string;
@@ -80,6 +83,30 @@ export class Trait {
 
 	// todo: implement once x/y/col/row resolved
 	public get preview() {
-		return;
+		const colorMap = new Map();
+		const palette = ['', ...this.palette].map((c) => c.replaceAll('#', ''));
+		palette.map((color, i) => colorMap.set(color, i));
+
+		const getColor = (coords: ColorCoordinates) => {
+			return colord(this.getPixelColorAt(coords)).toRgb();
+		};
+
+		const encodedImage = new RLEImage({
+			width: this.shape.width,
+			height: this.shape.height,
+			colorFn: getColor,
+		});
+		const previewConfig = {
+			bgcolors: ['transparent'],
+			palette,
+			images: {
+				preview: [{ filename: 'preview', data: encodedImage.toRLE(colorMap) }],
+			},
+		};
+
+		const factory = new Factory(previewConfig);
+		const item = factory.createItem();
+
+		return item.dataUrl;
 	}
 }
