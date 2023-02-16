@@ -67,7 +67,6 @@ export class Trait {
 		};
 	}
 
-	// todo: revisit col/row
 	public getPixelColorAt(opts: ColorCoordinates) {
 		const { x, y } = opts;
 		return this.colorMatrix[y][x] || 'transparent';
@@ -81,7 +80,6 @@ export class Trait {
 		else this.colorMatrix[y][x] = color;
 	}
 
-	// todo: implement once x/y/col/row resolved
 	public get preview() {
 		const colorMap = new Map();
 		const palette = ['', ...this.palette].map((c) => c.replaceAll('#', ''));
@@ -98,12 +96,13 @@ export class Trait {
 			width: this.shape.width,
 			height: this.shape.height,
 			colorFn: getColor,
-		});
+		}).toRLE(colorMap);
+
 		const previewConfig = {
-			bgcolors: ['transparent'],
+			bgColors: ['transparent'],
 			palette,
 			images: {
-				preview: [{ filename: 'preview', data: encodedImage.toRLE(colorMap) }],
+				preview: [{ filename: 'preview', data: encodedImage }],
 			},
 		};
 

@@ -5,7 +5,7 @@ import { buildSVG } from './builder.js';
 type EncodedImage = { filename: string; data: string };
 
 type ImageData<Parts> = {
-	bgcolors: string[];
+	bgColors: string[];
 	palette: string[];
 	images: {
 		[T in keyof Parts]: EncodedImage[];
@@ -32,7 +32,7 @@ type FactoryOptions = { viewbox?: number[] };
 type ItemOptions = { size?: number; removeBg?: boolean };
 
 export class Factory<Parts, BgColors> {
-	readonly bgcolors: string[] = [];
+	readonly bgColors: string[] = [];
 	readonly palette: string[] = [];
 	readonly images;
 	readonly viewbox: number[] = [0, 0, 320, 320];
@@ -41,8 +41,8 @@ export class Factory<Parts, BgColors> {
 		this.palette = imageData.palette;
 		this.images = imageData.images;
 
-		if (!imageData.bgcolors.length) this.bgcolors = ['transparent'];
-		else this.bgcolors = imageData.bgcolors;
+		if (!imageData.bgColors.length) this.bgColors = ['transparent'];
+		else this.bgColors = imageData.bgColors;
 
 		if (options?.viewbox) this.viewbox = options.viewbox;
 	}
@@ -118,7 +118,7 @@ export class Factory<Parts, BgColors> {
 						return this.images[currentPart][index];
 					}
 				}),
-				background: this.bgcolors[seed.background],
+				background: this.bgColors[seed.background],
 			};
 		},
 
@@ -128,7 +128,7 @@ export class Factory<Parts, BgColors> {
 		 * @returns number
 		 */
 		getBackgroundIdByColor: (colorString: string): number => {
-			const id = this.bgcolors.findIndex((color) => color === colorString);
+			const id = this.bgColors.findIndex((color) => color === colorString);
 			if (id < 0) {
 				throw new Error(
 					`invalid_color. Unable to find background part with value: ${String(
@@ -184,7 +184,7 @@ export class Factory<Parts, BgColors> {
 				if (part === 'background') {
 					seed.background = getPseudorandomPart(
 						pseudorandomness,
-						this.bgcolors.length,
+						this.bgColors.length,
 						0
 					);
 				} else {
@@ -210,7 +210,7 @@ export class Factory<Parts, BgColors> {
 			});
 
 			return {
-				background: Math.floor(Math.random() * this.bgcolors.length),
+				background: Math.floor(Math.random() * this.bgColors.length),
 				..._seed,
 			};
 		},
@@ -262,7 +262,7 @@ export class Factory<Parts, BgColors> {
 
 			Object.entries(namedSeed).forEach(([part, value]) => {
 				if (part === 'background') {
-					const index = this.bgcolors.findIndex((color) => {
+					const index = this.bgColors.findIndex((color) => {
 						const v = value as string;
 						return v.replace('#', '') === color;
 					});
@@ -306,7 +306,7 @@ export class Factory<Parts, BgColors> {
 
 			const parts = Object.entries(seed).map(([part, value]) => {
 				if (part === 'background') {
-					return [part, '#' + this.bgcolors[value as number]];
+					return [part, '#' + this.bgColors[value as number]];
 				} else if (String(value).startsWith('0x')) {
 					return [part, 'custom'];
 				}
@@ -344,7 +344,7 @@ export class Factory<Parts, BgColors> {
 			Object.entries(inputSeed).forEach(([part, value]) => {
 				try {
 					if (part === 'background') {
-						const color = this.bgcolors[value as number];
+						const color = this.bgColors[value as number];
 						if (!color) throw new Error();
 					} else {
 						let image;
