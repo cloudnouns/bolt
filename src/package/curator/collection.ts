@@ -1,9 +1,11 @@
-import type { HexColor } from './types';
+import type { ColorCoordinates, HexColor } from './types';
+import { colord } from 'colord';
 import { Trait } from './trait';
+import { RLEImage } from './encoder';
 
 type CollectionConfig = {
-	traits: Trait[];
-	bgColors: HexColor[];
+	traits?: Trait[];
+	bgColors?: HexColor[];
 };
 
 export class Collection {
@@ -111,5 +113,45 @@ export class Collection {
 		return ['', ...colors];
 	}
 
-	// todo: implement encodeTrait, config, and Collection.fromConfig
+	private encodeTrait(trait: Trait) {
+		const colorMap = new Map();
+		this.palette.map((color, i) => colorMap.set(color, i));
+
+		const getColor = (coords: ColorCoordinates) => {
+			const color = trait.getPixelColorAt(coords);
+			const c = colord(color);
+			if (color === 'transparent') return c.alpha(0).toRgb();
+			return c.toRgb();
+		};
+
+		const encodedImage = new RLEImage({
+			width: trait.shape.width,
+			height: trait.shape.height,
+			colorFn: getColor,
+		}).toRLE(colorMap);
+
+		return encodedImage;
+	}
+
+	public get config() {
+		const layerData = this.layers.map((layer) => {
+			const data = this.traits
+				.filter((trait) => trait.layer === layer)
+				.map((trait) => {
+					return { filename: trait.filename, data: this.encodeTrait(trait) };
+				});
+			return [layer, data];
+		});
+
+		return {
+			bgColors: this.bgColors,
+			palette: this.palette,
+			images: Object.fromEntries(layerData),
+		};
+	}
+
+	// todo: implement Collection.fromConfig
+	// static fromConfig(config: any) {
+	// 	return '';
+	// }
 }
