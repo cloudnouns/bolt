@@ -64,7 +64,7 @@ export const buildSVG = ({
 	)}" width="${size}" height="${size}" xmlns="http://www.w3.org/2000/svg" shape-rendering="crispEdges">`;
 
 	if (background !== 'transparent') {
-		openingTag += `<rect width="100%" height="100%" fill="#${background}" />`;
+		openingTag += `<rect width="${size}" height="${size}" fill="#${background}" />`;
 	}
 
 	const svgWithoutEndTag = parts.reduce((result, part) => {
