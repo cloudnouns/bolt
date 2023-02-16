@@ -88,7 +88,10 @@ export class Trait {
 		palette.map((color, i) => colorMap.set(color, i));
 
 		const getColor = (coords: ColorCoordinates) => {
-			return colord(this.getPixelColorAt(coords)).toRgb();
+			const color = this.getPixelColorAt(coords);
+			const c = colord(color);
+			if (color === 'transparent') return c.alpha(0).toRgb();
+			return c.toRgb();
 		};
 
 		const encodedImage = new RLEImage({
