@@ -65,7 +65,7 @@ export class Trait {
 	}
 
 	// todo: revisit col/row
-	public pixelColorAt(opts: ColorCoordinates) {
+	public getPixelColorAt(opts: ColorCoordinates) {
 		const { x, y } = opts;
 		return this.colorMatrix[y][x] || 'transparent';
 	}
