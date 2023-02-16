@@ -1,4 +1,9 @@
-import type { ColorCoordinates, ColorMatrix, HexColor } from './types';
+import type {
+	ColorCoordinates,
+	ColorMatrix,
+	HexColor,
+	Prettify,
+} from './types';
 import { createMatrix } from './utils';
 
 type TraitConfig = {
@@ -65,7 +70,9 @@ export class Trait {
 		return this.colorMatrix[y][x] || 'transparent';
 	}
 
-	public setPixelColorAt(opts: ColorCoordinates & { color: HexColor }) {
+	public setPixelColorAt(
+		opts: Prettify<ColorCoordinates & { color: HexColor }>
+	) {
 		const { x, y, color } = opts;
 		if (!color) this.colorMatrix[y][x] = '';
 		else this.colorMatrix[y][x] = color;
