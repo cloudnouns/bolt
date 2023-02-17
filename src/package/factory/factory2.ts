@@ -81,8 +81,16 @@ export class Factory<File extends ConfigFile> {
 
 	public createItemFromSeed(
 		config: Prettify<
-			{ readonly background: File['bgColors'][number] } & {
-				[T in keyof File['images']]: File['images'][T][number]['filename'];
+			{ readonly background: number } & {
+				[T in keyof File['images']]: number | '0x0000000000';
+			} & ItemConfig
+		>
+	) {}
+
+	private buildItem(
+		config: Prettify<
+			{ readonly background: number } & {
+				[T in keyof File['images']]: number | '0x0000000000';
 			} & ItemConfig
 		>
 	) {}
@@ -91,3 +99,10 @@ export class Factory<File extends ConfigFile> {
 const nf = new Factory(NounsDataTs);
 const nf2 = new Factory(NounsData);
 nf.createItem({ background: '#d5d7e1', body: 'gold', removeBg: true });
+nf.createItemFromSeed({
+	background: 0,
+	body: 0,
+	accessory: 0,
+	head: 0,
+	glasses: 0,
+});
