@@ -37,7 +37,7 @@ export class Factory<File extends ConfigFile> {
 	private _bgColors;
 	private _palette;
 	private _images;
-	private _viewbox: z.infer<typeof Viewbox>;
+	private _viewbox;
 
 	constructor(config: File, opts?: FactoryOptions) {
 		const { bgColors, palette, images } = zConfigFile.parse(config);
@@ -48,16 +48,6 @@ export class Factory<File extends ConfigFile> {
 		};
 		this._viewbox = opts?.viewbox ?? [0, 0, 320, 320];
 	}
-
-	public createItem(
-		config: Partial<
-			Prettify<
-				{ readonly background: File['bgColors'][number] } & {
-					[T in keyof File['images']]: File['images'][T][number]['filename'];
-				} & ItemConfig
-			>
-		>
-	) {}
 
 	public get bgColors() {
 		return this._bgColors;
@@ -78,6 +68,24 @@ export class Factory<File extends ConfigFile> {
 	public set viewbox(viewbox: z.infer<typeof Viewbox>) {
 		this._viewbox = viewbox;
 	}
+
+	public createItem(
+		config: Partial<
+			Prettify<
+				{ readonly background: File['bgColors'][number] } & {
+					[T in keyof File['images']]: File['images'][T][number]['filename'];
+				} & ItemConfig
+			>
+		>
+	) {}
+
+	public createItemFromSeed(
+		config: Prettify<
+			{ readonly background: File['bgColors'][number] } & {
+				[T in keyof File['images']]: File['images'][T][number]['filename'];
+			} & ItemConfig
+		>
+	) {}
 }
 
 const nf = new Factory(NounsDataTs);
