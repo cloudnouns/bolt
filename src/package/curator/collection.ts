@@ -147,7 +147,7 @@ export class Collection {
 			bgColors: this.bgColors,
 			palette: this.palette,
 			images: Object.fromEntries(layerData),
-		};
+		} as const;
 	}
 
 	// todo: implement Collection.fromConfig
