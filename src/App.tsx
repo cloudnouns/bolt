@@ -1,5 +1,9 @@
+import { Factory } from './package/factory/factory';
 import { Trait } from './package/curator/trait';
 import Flamingo from './data/mock-trait';
+import NounsData from './data/nouns.json';
+
+const nounFactory = new Factory(NounsData);
 
 function App() {
 	const trait = new Trait({
@@ -8,7 +12,7 @@ function App() {
 		colorMatrix: Flamingo,
 	});
 
-	trait.setPixelColorAt({ x: 31, y: 0, color: '#dcff' });
+	trait.setPixelColorAt({ x: 31, y: 0, color: '#ddccff' });
 
 	return (
 		<div className="min-h-screen flex items-center justify-center">
@@ -39,6 +43,7 @@ function App() {
 					</div>
 
 					<img src={trait.preview} alt="" />
+					<img src={nounFactory.createItem({}).dataUrl} alt="" />
 				</div>
 
 				<div className="flex flex-wrap">
