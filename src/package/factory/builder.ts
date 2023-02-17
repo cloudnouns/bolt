@@ -64,7 +64,7 @@ export const buildSVG = ({
 	)}" width="${size}" height="${size}" xmlns="http://www.w3.org/2000/svg" shape-rendering="crispEdges">`;
 
 	if (background !== 'transparent') {
-		openingTag += `<rect width="${size}" height="${size}" fill="#${background}" />`;
+		openingTag += `<rect width="${size}" height="${size}" fill="${background}" />`;
 	}
 
 	const svgWithoutEndTag = parts.reduce((result, part) => {
@@ -85,7 +85,7 @@ export const buildSVG = ({
 					svgRects.push(
 						`<rect width="${length * 10}" height="10" x="${currentX * 10}" y="${
 							currentY * 10
-						}" fill="#${hexColor}" />`
+						}" fill="${hexColor}" />`
 					);
 				}
 

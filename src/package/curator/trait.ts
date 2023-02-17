@@ -82,14 +82,13 @@ export class Trait {
 
 	public get preview() {
 		const colorMap = new Map();
-		const palette = ['', ...this.palette].map((c) => c.replaceAll('#', ''));
+		const palette = ['', ...this.palette];
 		palette.map((color, i) => colorMap.set(color, i));
 
 		const getColor = (coords: ColorCoordinates) => {
 			const color = this.getPixelColorAt(coords);
-			const c = colord(color);
-			if (color === 'transparent') return c.alpha(0).toRgb();
-			return c.toRgb();
+			if (color === 'transparent') return colord(color).alpha(0).toRgb();
+			return colord(color).toRgb();
 		};
 
 		const encodedImage = new RLEImage({
@@ -101,7 +100,7 @@ export class Trait {
 		const previewConfig = {
 			bgColors: ['transparent'],
 			palette,
-			images: {
+			parts: {
 				preview: [{ filename: 'preview', data: encodedImage }],
 			},
 		};

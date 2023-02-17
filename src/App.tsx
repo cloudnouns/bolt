@@ -1,7 +1,7 @@
 import { Factory } from './package/factory/factory';
 import { Trait } from './package/curator/trait';
 import Flamingo from './data/mock-trait';
-import NounsData from './data/nouns.json';
+import NounsData from './data/nouns.js';
 
 const nounFactory = new Factory(NounsData);
 
@@ -43,7 +43,7 @@ function App() {
 					</div>
 
 					<img src={trait.preview} alt="" />
-					<img src={nounFactory.createItem({}).dataUrl} alt="" />
+					<img src={nounFactory.createItem().dataUrl} alt="" />
 				</div>
 
 				<div className="flex flex-wrap">

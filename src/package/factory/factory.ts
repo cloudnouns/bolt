@@ -1,91 +1,127 @@
+import type { Prettify } from '../curator/types';
+import { z } from 'zod';
 import { BigNumber, type BigNumberish } from '@ethersproject/bignumber';
 import { keccak256 } from '@ethersproject/solidity';
 import { buildSVG } from './builder.js';
 
-type EncodedImage = { filename: string; data: string };
+// author ens
+const BLOCKHASH =
+	'0xb7b854ef54ed2fee21bf30a27eae35b7d90101ed416c41f8cb68394d64fefdfb';
 
-type ImageData<Parts> = {
-	bgColors: string[];
-	palette: string[];
-	images: {
-		[T in keyof Parts]: EncodedImage[];
-	};
+const zHexColor = z.union([
+	z.string().startsWith('#').length(7),
+	z.literal('transparent'),
+	z.string().max(0),
+]);
+
+const zEncodedPart = z.object({
+	filename: z.string().min(1),
+	data: z.string().startsWith('0x'),
+});
+
+const zConfigFile = z.object({
+	bgColors: zHexColor.array().nonempty(),
+	palette: zHexColor.array().nonempty(),
+	parts: z.object({}).catchall(zEncodedPart.array().nonempty()),
+});
+
+const zViewbox = z.number().array().length(4);
+type Viewbox = z.infer<typeof zViewbox>;
+
+type EncodedPart = { readonly filename: string; readonly data: string };
+
+type ConfigFile = {
+	bgColors: readonly string[];
+	palette: readonly string[];
+	parts: Record<string, readonly EncodedPart[]>;
 };
 
-type Image<Parts, BgColors> = Parts & {
-	background: BgColors;
+type NamedBgColor<File extends ConfigFile> = {
+	readonly background: File['bgColors'][number];
 };
 
-type Seed<Image> = {
-	[T in keyof Image]: number;
+type NamedParts<File extends ConfigFile> = {
+	[Part in keyof File['parts']]: File['parts'][Part][number]['filename'];
 };
 
-type NamedSeed<Image> = {
-	[T in keyof Image]: Image[T];
-};
+type NamedSeed<File extends ConfigFile> = Prettify<
+	NamedBgColor<File> & NamedParts<File>
+>;
 
-type RLESeed<Image> = {
-	[T in keyof Image]: number | string;
-};
+type Seed<File extends ConfigFile> = Prettify<
+	{ [Color in keyof NamedBgColor<File>]: number } & {
+		[Part in keyof NamedParts<File>]: number;
+	}
+>;
 
-type FactoryConfig = { viewbox?: number[] };
+type NamedSeedItemConfig<File extends ConfigFile> = Prettify<
+	NamedSeed<File> & ItemConfig
+>;
+
 type ItemConfig = { size?: number; removeBg?: boolean };
 
-export class Factory<Parts, BgColors> {
-	readonly bgColors: string[] = [];
-	readonly palette: string[] = [];
-	readonly images;
-	readonly viewbox: number[] = [0, 0, 320, 320];
+export class Factory<File extends ConfigFile> {
+	private _bgColors;
+	private _palette;
+	private _parts;
+	private _viewbox;
 
-	constructor(imageData: ImageData<Parts>, options?: FactoryConfig) {
-		this.palette = imageData.palette;
-		this.images = imageData.images;
-
-		if (!imageData.bgColors.length) this.bgColors = ['transparent'];
-		else this.bgColors = imageData.bgColors;
-
-		if (options?.viewbox) this.viewbox = options.viewbox;
+	constructor(config: File, opts?: { viewbox?: Viewbox }) {
+		const { bgColors, palette, parts } = zConfigFile.parse(config);
+		this._bgColors = bgColors;
+		this._palette = palette;
+		this._parts = parts as unknown as {
+			[T in keyof File['parts']]: readonly EncodedPart[];
+		};
+		this._viewbox = opts?.viewbox ?? [0, 0, 320, 320];
 	}
 
-	/** Create new item.
-	 * @param {Partial<NamedSeed>} [namedSeed]
-	 * @param {object} [options]
-	 * @param {number} [options.size]
-	 * @param {boolean} [options.removeBg]
-	 */
-	createItem = (
-		namedSeed: Partial<Image<Parts, BgColors>> = {},
-		options?: ItemConfig
-	) => {
+	public get bgColors() {
+		return this._bgColors;
+	}
+
+	public get palette() {
+		return this._palette;
+	}
+
+	public get parts() {
+		return this._parts;
+	}
+
+	public get viewbox() {
+		return this._viewbox;
+	}
+
+	public set viewbox(viewbox: Viewbox) {
+		this._viewbox = zViewbox.parse(viewbox);
+	}
+
+	public createItem(config: Partial<NamedSeedItemConfig<File>> = {}) {
+		const namedSeed: Partial<NamedSeed<File>> = {};
+		const keys = this.utils.getSeedKeys();
+
+		for (const key of Object.keys(config)) {
+			// @ts-expect-error issue with index sigs on partials, idk...
+			if (keys.includes(key)) namedSeed[key] = config[key];
+		}
+
 		const seed = this.utils.namedSeedToSeed(namedSeed);
-		return this.buildItem(seed, options);
-	};
+		return this.buildItem(seed, config);
+	}
 
-	/** Create new item from a seed.
-	 * @param {Seed|RLESeed} seed
-	 * @param {object} [options]
-	 * @param {number} [options.size]
-	 * @param {boolean} [options.removeBg]
-	 */
-	createItemFromSeed = (
-		seed: Seed<Image<Parts, BgColors>> | RLESeed<Image<Parts, BgColors>>,
-		options?: ItemConfig
-	) => {
-		return this.buildItem(seed, options);
-	};
+	public createItemFromSeed(seed: Seed<File>, opts: ItemConfig = {}) {
+		return this.buildItem(seed, opts);
+	}
 
-	private buildItem = (
-		inputSeed: Seed<Image<Parts, BgColors>> | RLESeed<Image<Parts, BgColors>>,
-		options?: ItemConfig
-	) => {
-		const { seed, hasRLEParts } = this.utils.validateSeed(inputSeed);
-		const { parts, background } = this.utils.getItemParts(seed, hasRLEParts);
+	private buildItem(seed: Seed<File>, config: ItemConfig) {
+		const _seed = this.utils.validateSeed(seed);
+		const { background, parts } = this.itemParts(_seed, config.removeBg);
 
 		const svg = buildSVG({
 			parts,
+			background,
+			size: config.size,
 			palette: this.palette,
-			background: options?.removeBg ? 'transparent' : background,
-			size: options?.size,
 			viewbox: this.viewbox,
 		});
 
@@ -94,280 +130,185 @@ export class Factory<Parts, BgColors> {
 			seed,
 			dataUrl: 'data:image/svg+xml;base64,' + btoa(svg),
 		};
-	};
+	}
+
+	private itemParts(seed: Seed<File>, removeBg?: boolean) {
+		// get background color
+		let background;
+		if (seed.background === -99 || removeBg) background = 'transparent';
+		else background = this.bgColors[seed.background];
+
+		// get part data
+		const parts = Object.keys(this.parts).map((part) => {
+			if (seed[part] === -99) return { data: '0x0000000000' };
+			return this.parts[part][seed[part]];
+		});
+
+		//
+		return { background, parts };
+	}
 
 	utils = {
-		/** Collects background color and encoded image data for seed.
-		 * @param {Seed} seed
-		 */
-		getItemParts: (
-			seed: Seed<Image<Parts, BgColors>>,
-			hasRLEParts: boolean
+		getBackgroundIdByColor: (color: File['bgColors'][number]) => {
+			const count = this.bgColors.length;
+			const id = this.bgColors.findIndex((c) => color === c);
+
+			// validate id
+			const result = z.number().nonnegative().lt(count).safeParse(id);
+			if (!result.success) {
+				throw new Error(`invalid_background_color: ${color}`);
+			}
+
+			return id;
+		},
+
+		getPartIdByName: <Part extends keyof File['parts']>(
+			part: Part,
+			partName: File['parts'][Part][number]['filename']
 		) => {
-			const parts = Object.entries(seed).filter(([part]) => {
-				return part !== 'background';
+			const count = this.parts[part].length;
+			const id = this.parts[part].findIndex((part) => {
+				return partName === part.filename;
 			});
 
-			return {
-				parts: parts.map(([part, value]) => {
-					const currentPart = part as keyof Parts;
-					if (hasRLEParts && String(value).startsWith('0x')) {
-						return { filename: 'custom', data: value as unknown as string };
-					} else {
-						const index = value as number;
-						return this.images[currentPart][index];
-					}
-				}),
-				background: this.bgColors[seed.background],
-			};
-		},
-
-		/** Given a color string, returns the associated id (index) of the background
-		 * @param {string} colorString
-		 * @throws if color cannot be found
-		 * @returns number
-		 */
-		getBackgroundIdByColor: (colorString: string): number => {
-			const id = this.bgColors.findIndex((color) => color === colorString);
-			if (id < 0) {
-				throw new Error(
-					`invalid_color. Unable to find background part with value: ${String(
-						colorString
-					)}`
-				);
+			// validate id
+			const result = z.number().nonnegative().lt(count).safeParse(id);
+			if (!result.success) {
+				throw new Error(`invalid_part: { ${String(part)}: "${partName}" }`);
 			}
+
 			return id;
 		},
 
-		/** Given a part and part name, returns the associated id (index) of the part
-		 * @param {string} part
-		 * @param {string} partName
-		 * @throws if part cannot be found
-		 * @returns number
-		 */
-		getPartIdByName: (part: keyof Parts, partName: string): number => {
-			const id = this.images[part as keyof Parts].findIndex(
-				(p) => partName === p.filename
-			);
-			if (id < 0) {
-				throw new Error(
-					`invalid_part. Unable to find part for ${String(
-						part
-					)} with value: ${partName}`
-				);
-			}
-			return id;
-		},
+		getSeedKeys: () => ['background', ...Object.keys(this.parts)],
 
-		/** Emulates NounsSeeder.sol methodology for pseudorandomly selecting a part
-		 * @param {BigNumberish} id
-		 * @param {string} [blockHash]
-		 * @returns Seed
-		 */
-		getSeedFromBlockHash: (
-			id: BigNumberish,
-			blockHash?: string
-		): Seed<Image<Parts, BgColors>> => {
-			if (!blockHash) {
-				blockHash =
-					'0x305837d283efbc5a8ea53934fb122ac88473c68c1db0ebe2a2279f09f5772878';
-			}
-
-			const pseudorandomness = keccak256(
-				['bytes32', 'uint256'],
-				[blockHash, id]
-			);
-			const parts = ['background', ...Object.keys(this.images)];
-			const seed: any = {};
-
-			parts.forEach((part, i) => {
-				if (part === 'background') {
-					seed.background = getPseudorandomPart(
-						pseudorandomness,
-						this.bgColors.length,
-						0
-					);
-				} else {
-					seed[part] = getPseudorandomPart(
-						pseudorandomness,
-						this.images[part as keyof Parts].length,
-						i * 48
-					);
-				}
-			});
-
-			return seed;
-		},
-
-		/** Generate a random seed
-		 * @returns Seed
-		 */
-		getRandomSeed: (): Seed<Image<Parts, BgColors>> => {
+		getRandomSeed: (): Seed<File> => {
 			const _seed: any = {};
 
-			Object.entries(this.images).forEach(([trait, items]: any) => {
-				_seed[trait] = Math.floor(Math.random() * items.length);
+			// get id for random background color
+			const background = Math.floor(Math.random() * this.bgColors.length);
+
+			// get ids for random parts
+			for (const [part, items] of Object.entries(this.parts)) {
+				_seed[part] = Math.floor(Math.random() * items.length);
+			}
+
+			return { background, ..._seed };
+		},
+
+		getSeedFromBlockhash: (config: {
+			id: BigNumberish;
+			blockhash?: string;
+		}): Seed<File> => {
+			const { id, blockhash } = config;
+			const types = ['bytes32', 'uint256'];
+			const values = [blockhash ?? BLOCKHASH, id];
+			const pseudorandomness = keccak256(types, values);
+
+			const _seed = this.utils.getSeedKeys().map((part, i) => {
+				let count: number;
+				if (part === 'background') count = this.bgColors.length;
+				else count = this.parts[part].length;
+				return getPseudorandomPart(pseudorandomness, count, i * 48);
 			});
 
-			return {
-				background: Math.floor(Math.random() * this.bgColors.length),
-				..._seed,
-			};
+			return this.utils.arraySeedToSeed(_seed);
 		},
 
-		/** Transforms number[] into NamedSeed
-		 * @param {number[]} arr
-		 * @returns NamedSeed
-		 */
-		arraySeedToNamedSeed: (
-			arr: number[]
-		): NamedSeed<Image<Parts, BgColors>> => {
-			const seed = this.utils.arraySeedToSeed(arr);
-			return this.utils.seedToNamedSeed(seed);
+		arraySeedToNamedSeed: (seed: number[]): NamedSeed<File> => {
+			const _seed = this.utils.arraySeedToSeed(seed);
+			return this.utils.seedToNamedSeed(_seed);
 		},
 
-		/** Transforms number[] into Seed
-		 * @param {number[]} arr
-		 * @returns Seed
-		 */
-		arraySeedToSeed: (arr: number[]): Seed<Image<Parts, BgColors>> => {
-			const parts = ['background', ...Object.keys(this.images)];
-			const entries = parts.map((part, i) => [part, arr[i]]);
+		arraySeedToSeed: (seed: number[]): Seed<File> => {
+			const parts = this.utils.getSeedKeys();
+			const entries = parts.map((part, i) => [part, seed[i]]);
 			return Object.fromEntries(entries);
 		},
 
-		/** Transforms NamedSeed into number[]
-		 * @param {NamedSeed} namedSeed
-		 * @returns number[]
-		 */
-		namedSeedToArraySeed: (
-			namedSeed:
-				| NamedSeed<Image<Parts, BgColors>>
-				| Partial<NamedSeed<Image<Parts, BgColors>>>
-		): number[] => {
-			const seed = this.utils.namedSeedToSeed(namedSeed);
-			return this.utils.seedToArraySeed(seed);
+		namedSeedToArraySeed: (seed: NamedSeed<File>): number[] => {
+			const _seed = this.utils.namedSeedToSeed(seed);
+			return this.utils.seedToArraySeed(_seed);
 		},
 
-		/** Transforms NamedSeed into Seed
-		 * @param {NamedSeed} namedSeed
-		 * @returns Seed
-		 */
 		namedSeedToSeed: (
-			namedSeed:
-				| NamedSeed<Image<Parts, BgColors>>
-				| Partial<NamedSeed<Image<Parts, BgColors>>>
-		): Seed<Image<Parts, BgColors>> => {
-			const seed = this.utils.getRandomSeed();
+			seed: NamedSeed<File> | Partial<NamedSeed<File>>
+		): Seed<File> => {
+			const _seed: any = {};
+			const providedParts = Object.entries(seed);
+			const missingParts = this.utils
+				.getSeedKeys()
+				.filter((key) => !Object.keys(seed).includes(key));
 
-			Object.entries(namedSeed).forEach(([part, value]) => {
+			for (const [part, value] of providedParts) {
 				if (part === 'background') {
-					const index = this.bgColors.findIndex((color) => {
-						const v = value as string;
-						return v.replace('#', '') === color;
-					});
-					seed.background = index;
-				} else if (Object.keys(seed).includes(part)) {
-					const index = this.images[part as keyof Parts].findIndex(
-						(image) => value === image.filename
-					);
-					seed[part as keyof Parts] = index;
+					_seed.background = this.utils.getBackgroundIdByColor(value);
+				} else {
+					_seed[part] = this.utils.getPartIdByName(part, value);
 				}
-			});
-
-			return seed;
-		},
-
-		/** Transforms Seed into number[]
-		 * @param {Seed} inputSeed
-		 * @returns number[]
-		 */
-		seedToArraySeed: (inputSeed: Seed<Image<Parts, BgColors>>): number[] => {
-			const { seed } = this.utils.validateSeed(inputSeed);
-
-			const parts = Object.keys(this.images);
-			const arr = [seed.background];
-
-			parts.forEach((part) => {
-				arr.push(seed[part as keyof Parts]);
-			});
-
-			return arr;
-		},
-
-		/** Transforms Seed into NamedSeed
-		 * @param {Seed} inputSeed
-		 * @returns NamedSeed
-		 */
-		seedToNamedSeed: (
-			inputSeed: Seed<Image<Parts, BgColors>>
-		): NamedSeed<Image<Parts, BgColors>> => {
-			const { seed } = this.utils.validateSeed(inputSeed);
-
-			const parts = Object.entries(seed).map(([part, value]) => {
-				if (part === 'background') {
-					return [part, '#' + this.bgColors[value as number]];
-				} else if (String(value).startsWith('0x')) {
-					return [part, 'custom'];
-				}
-
-				const image: EncodedImage =
-					this.images[part as keyof Parts][value as number];
-				return [part, image.filename];
-			});
-
-			return Object.fromEntries(parts);
-		},
-
-		/** Validates seed against factory data
-		 * @param {Seed} inputSeed
-		 * @throws if Seed has unknown or missing keys, or a part otherwise can't be found
-		 */
-		validateSeed: (
-			inputSeed: Seed<Image<Parts, BgColors>> | RLESeed<Image<Parts, BgColors>>
-		) => {
-			const seedParts = Object.keys(inputSeed);
-			const imageParts = ['background', ...Object.keys(this.images)];
-			let hasRLEParts = false;
-
-			if (seedParts.length < imageParts.length) {
-				const missingKeys = imageParts.filter(
-					(key) => !seedParts.includes(key)
-				);
-				throw new Error(
-					`invalid_seed. seed is missing following properties: ${missingKeys.join(
-						', '
-					)}`
-				);
 			}
 
-			Object.entries(inputSeed).forEach(([part, value]) => {
-				try {
-					if (part === 'background') {
-						const color = this.bgColors[value as number];
-						if (!color) throw new Error();
-					} else {
-						let image;
-						if (String(value).startsWith('0x')) {
-							image = value as unknown as string;
-							hasRLEParts = true;
-						} else image = this.images[part as keyof Parts][value as number];
-						if (!image) throw new Error();
-					}
-				} catch (err) {
-					throw new Error(
-						`invalid_seed. bad property or value: { ..., ${part}: ${value} }`
-					);
-				}
-			});
-
-			let sortedSeedEntries: any[] = [];
-			for (const part of imageParts) {
-				sortedSeedEntries.push([part, inputSeed[part as keyof Parts]]);
+			if (missingParts.length) {
+				const random = this.utils.getRandomSeed();
+				for (const part of missingParts) _seed[part] = random[part];
 			}
 
-			const sortedSeed = Object.fromEntries(sortedSeedEntries);
-			return { hasRLEParts, seed: sortedSeed as Seed<Image<Parts, BgColors>> };
+			return _seed;
+		},
+
+		seedToArraySeed: (seed: Seed<File>): number[] => {
+			const parts = this.utils.getSeedKeys();
+			return parts.map((part) => seed[part]);
+		},
+
+		seedToNamedSeed: (seed: Seed<File>): NamedSeed<File> => {
+			const _seed: any = {};
+
+			for (const [part, value] of Object.entries(seed)) {
+				if (part === 'background') {
+					if (value === -99) _seed.background = 'transparent';
+					else _seed.background = this.bgColors[Number(value)];
+				} else {
+					if (value === -99) _seed[part] = 'intentionally-blank';
+					else _seed[part] = this.parts[part][Number(value)].filename;
+				}
+			}
+
+			return _seed;
+		},
+
+		validateSeed: (seed: Seed<File>): Seed<File> => {
+			const parts = this.utils.getSeedKeys();
+
+			// check for extra or missing parts
+			const providedParts = Object.keys(seed);
+			const extraKeys = parts.filter((part) => !providedParts.includes(part));
+			const missingKeys = parts.filter((part) => !providedParts.includes(part));
+
+			if (extraKeys.length) {
+				throw new Error(`Extra keys included: [${extraKeys.join(', ')}]`);
+			} else if (missingKeys.length) {
+				throw new Error(`Missing keys: [${missingKeys.join(', ')}]`);
+			}
+
+			// validate each part
+			for (const [part, id] of Object.entries(seed)) {
+				let count;
+				if (part === 'background') count = this.bgColors.length;
+				else count = this.parts[part].length;
+
+				// validate id
+				const result = z
+					.union([z.literal(-99), z.number().nonnegative().lt(count)])
+					.safeParse(id);
+				if (!result.success) {
+					throw new Error(`invalid_part: { ${String(part)}: ${id} }`);
+				}
+			}
+
+			// reorder seed
+			const _seed = parts.map((part) => seed[part]);
+			return this.utils.arraySeedToSeed(_seed);
 		},
 	};
 }

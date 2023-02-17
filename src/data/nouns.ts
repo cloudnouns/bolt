@@ -241,7 +241,7 @@ export default <const>{
 		'#ffc5f0',
 		'#d4cfc0',
 	],
-	images: {
+	parts: {
 		body: [
 			{
 				filename: 'bege-bsod',
