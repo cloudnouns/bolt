@@ -146,7 +146,7 @@ export class Collection {
 		return {
 			bgColors: this.bgColors,
 			palette: this.palette,
-			images: Object.fromEntries(layerData),
+			parts: Object.fromEntries(layerData),
 		} as const;
 	}
 
