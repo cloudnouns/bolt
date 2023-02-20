@@ -82,9 +82,9 @@ export class Trait {
 	}
 
 	public get preview() {
-		const colorMap = new Map();
+		const colors = new Map();
 		const palette = ['', ...this.palette];
-		palette.map((color, i) => colorMap.set(color, i));
+		palette.map((color, i) => colors.set(color, i));
 
 		const getColor = (coords: ColorCoordinates) => {
 			const hex = this.getPixelColorAt(coords);
@@ -97,7 +97,7 @@ export class Trait {
 			width: this.shape.width,
 			height: this.shape.height,
 			colorFn: getColor,
-		}).toRLE(colorMap);
+		}).toRLE(colors);
 
 		const previewConfig = {
 			bgColors: ['transparent'],
@@ -121,15 +121,16 @@ export class Trait {
 			depth: Math.max(...[height, width]),
 		});
 
-		const colors: Record<string, number> = {};
+		const colors = new Map();
 		for (const color of this.palette) {
-			colors[color] = png.createColor(color);
+			const i = png.createColor(color);
+			colors.set(color, i);
 		}
 
 		const matrix = this.colorMatrix;
 		for (const [y, row] of matrix.entries()) {
 			for (const [x, color] of row.entries()) {
-				if (color) png.setPixel(x, y, colors[color]);
+				if (color) png.setPixel(x, y, colors.get(color));
 			}
 		}
 
