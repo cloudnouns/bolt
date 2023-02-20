@@ -1,7 +1,8 @@
-import { Factory } from './package/factory/factory';
+import { Factory } from './package/factory';
 import { Trait } from './package/curator/trait';
 import Flamingo from './data/mock-trait';
 import NounsData from './data/nouns.js';
+import { Collection } from './package/curator/collection';
 
 const nounFactory = new Factory(NounsData);
 
@@ -13,6 +14,10 @@ function App() {
 	});
 
 	trait.setPixelColorAt({ x: 31, y: 0, color: '#ddccff' });
+	const collection = new Collection({ traits: [] });
+	collection.addTrait(trait);
+	console.log(collection.config);
+	const cf = new Factory(collection.config);
 
 	return (
 		<div className="min-h-screen flex items-center justify-center">
