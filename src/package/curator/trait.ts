@@ -7,7 +7,7 @@ import type {
 import { colord } from 'colord';
 import { createMatrix } from './utils';
 import { RLEImage } from './encoder';
-import { Factory } from '../factory/factory';
+import { Factory } from '../factory';
 
 type TraitConfig = {
 	name: string;
