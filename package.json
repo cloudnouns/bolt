@@ -12,6 +12,7 @@
 	"dependencies": {
 		"@ethersproject/bignumber": "^5.7.0",
 		"@ethersproject/solidity": "^5.7.0",
+		"base64-js": "^1.5.1",
 		"canvas": "^2.11.0",
 		"colord": "^2.9.3",
 		"zod": "^3.20.6"

@@ -8,6 +8,7 @@ import { colord } from 'colord';
 import { createMatrix } from './utils';
 import { RLEImage } from './encoder';
 import { Factory } from '../factory';
+import PNGImage from './pnglib';
 
 type TraitConfig = {
 	name: string;
@@ -86,9 +87,10 @@ export class Trait {
 		palette.map((color, i) => colorMap.set(color, i));
 
 		const getColor = (coords: ColorCoordinates) => {
-			const color = this.getPixelColorAt(coords);
-			if (color === 'transparent') return colord(color).alpha(0).toRgb();
-			return colord(color).toRgb();
+			const hex = this.getPixelColorAt(coords);
+			const color = colord(hex);
+			if (hex === 'transparent') return color.alpha(0).toRgb();
+			return color.toRgb();
 		};
 
 		const encodedImage = new RLEImage({
@@ -109,5 +111,28 @@ export class Trait {
 		const item = factory.createItem();
 
 		return item.dataUrl;
+	}
+
+	public toPng() {
+		const { height, width } = this.shape;
+		const png = new PNGImage({
+			width,
+			height,
+			depth: Math.max(...[height, width]),
+		});
+
+		const colors: Record<string, number> = {};
+		for (const color of this.palette) {
+			colors[color] = png.createColor(color);
+		}
+
+		const matrix = this.colorMatrix;
+		for (const [y, row] of matrix.entries()) {
+			for (const [x, color] of row.entries()) {
+				if (color) png.setPixel(x, y, colors[color]);
+			}
+		}
+
+		return png.getDataURL();
 	}
 }
